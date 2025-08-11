@@ -146,6 +146,47 @@ const PRO_TIPS: ProTip[] = [
     category: 'enterprise',
     icon: Target,
     color: { bg: 'bg-blue-50', text: 'text-blue-900', icon: 'text-blue-600' }
+  },
+  // GPT-5 Specific Techniques
+  {
+    id: '17',
+    title: 'Instruction Style Sensitivity',
+    description: 'Be explicit about tone and style. GPT-5 adapts strongly to the communication style you establish and performs better with well-defined parameters.',
+    category: 'advanced',
+    icon: Zap,
+    color: { bg: 'bg-yellow-50', text: 'text-yellow-900', icon: 'text-yellow-600' }
+  },
+  {
+    id: '18',
+    title: 'Planning Before Execution',
+    description: 'Ask GPT-5 to decompose requests, identify ambiguities, create structured approaches, and validate understanding before proceeding.',
+    category: 'advanced',
+    icon: Layers,
+    color: { bg: 'bg-emerald-50', text: 'text-emerald-900', icon: 'text-emerald-600' }
+  },
+  {
+    id: '19',
+    title: 'Spec Format Structure',
+    description: 'Use <task_spec> tags to define exactly what you want, when it\'s required, format & style, sequence, and what to avoid.',
+    category: 'enterprise',
+    icon: Code,
+    color: { bg: 'bg-rose-50', text: 'text-rose-900', icon: 'text-rose-600' }
+  },
+  {
+    id: '20',
+    title: 'Reasoning & Validation Steps',
+    description: 'Include pre-execution reasoning, planning phases, validation checkpoints, and post-action reviews for complex prompts.',
+    category: 'enterprise',
+    icon: Brain,
+    color: { bg: 'bg-indigo-50', text: 'text-indigo-900', icon: 'text-indigo-600' }
+  },
+  {
+    id: '21',
+    title: 'Complete Task Resolution',
+    description: 'Instruct the AI to continue working until fully resolved: decompose ALL sub-tasks, confirm completion, and handle follow-ups.',
+    category: 'advanced',
+    icon: Target,
+    color: { bg: 'bg-teal-50', text: 'text-teal-900', icon: 'text-teal-600' }
   }
 ]
 
