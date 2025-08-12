@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSupabase } from '@/components/providers'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -52,6 +52,25 @@ export default function IntegrationsPage() {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showMagicSetup, setShowMagicSetup] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const [isClient, setIsClient] = useState(false)
+
+  // Ensure we're running on client side
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  if (!isClient) {
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <div className="flex items-center justify-center min-h-96">
+          <div className="text-center">
+            <div className="w-8 h-8 border-4 border-purple-300 border-t-purple-600 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading integrations...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
   const [selectedServer, setSelectedServer] = useState<MCPServerConfig | null>(null)
   const [customConfig, setCustomConfig] = useState<Partial<MCPServerConfig>>({
     name: '',

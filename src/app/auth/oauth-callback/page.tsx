@@ -1,25 +1,27 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { oauthManager } from '@/lib/mcp/oauth'
 import { 
   CheckCircle, 
-  AlertCircle, 
-  ExternalLink 
+  AlertCircle
 } from 'lucide-react'
 
 // Force dynamic rendering to avoid SSR issues
 export const dynamic = 'force-dynamic'
 
-export default function OAuthCallbackPage() {
+function OAuthCallbackContent() {
   const searchParams = useSearchParams()
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [error, setError] = useState<string>('')
 
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return
+
     const handleCallback = async () => {
       try {
         const code = searchParams.get('code')
@@ -49,7 +51,9 @@ export default function OAuthCallbackPage() {
         
         // Close the popup after a brief delay
         setTimeout(() => {
-          window.close()
+          if (window.opener) {
+            window.close()
+          }
         }, 2000)
 
       } catch (err) {
@@ -125,5 +129,21 @@ export default function OAuthCallbackPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function OAuthCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="flex items-center justify-center py-8">
+            <LoadingSpinner className="w-8 h-8" />
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <OAuthCallbackContent />
+    </Suspense>
   )
 }
