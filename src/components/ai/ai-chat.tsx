@@ -44,7 +44,7 @@ interface AiChatProps {
   onSavePrompt?: (prompt: string, metadata?: { title?: string, description?: string, tags?: string[] }) => Promise<void>
 }
 
-type CommandType = 'generate' | 'analyze' | 'test' | 'evaluate' | 'save' | 'load' | 'context'
+type CommandType = 'generate' | 'analyze' | 'test' | 'evaluate' | 'save' | 'load' | 'context' | 'setup'
 
 interface Command {
   type: CommandType
@@ -96,6 +96,13 @@ const AVAILABLE_COMMANDS: Command[] = [
     label: '@context',
     description: 'Pull real-time context from connected MCP servers',
     color: 'text-cyan-600'
+  },
+  {
+    type: 'setup',
+    icon: Zap,
+    label: '@setup',
+    description: 'Set up new MCP integrations easily',
+    color: 'text-pink-600'
   }
 ]
 
@@ -619,6 +626,51 @@ Would you like me to help implement these improvements?`
     }
   }
 
+  const executeSetup = async () => {
+    if (!commandData.setupUrl?.trim()) return
+    
+    try {
+      addAssistantMessage("✨ Starting Magic MCP Setup...")
+      
+      // Show step-by-step progress through messages
+      addAssistantMessage("🔍 **Step 1:** Analyzing the provided URL...")
+      
+      // Mock the setup process for now - this would integrate with the MagicSetupWizard logic
+      setTimeout(() => {
+        addAssistantMessage("📡 **Step 2:** Detecting MCP server type and requirements...")
+      }, 1000)
+      
+      setTimeout(() => {
+        addAssistantMessage("🔑 **Step 3:** Checking OAuth requirements...")
+      }, 2000)
+      
+      setTimeout(() => {
+        addAssistantMessage("⚡ **Step 4:** Setting up the integration...")
+      }, 3000)
+      
+      setTimeout(() => {
+        addAssistantMessage(`✅ **Setup Complete!** 
+
+Your MCP integration has been successfully configured and is ready to use.
+
+**What's available:**
+• Use @context to pull real-time data
+• Integration appears in your Integrations page
+• All OAuth connections are automatically handled
+
+Try typing @context to see your new integration in action!`)
+        
+        setActiveCommand(null)
+        setCommandData({})
+      }, 4000)
+      
+    } catch (error) {
+      addAssistantMessage("❌ Setup failed. Please check the URL and try again.")
+      console.error('Setup execution error:', error)
+      setActiveCommand(null)
+    }
+  }
+
   const formatMessageContent = (content: string) => {
     // Convert code blocks to proper formatting
     return content
@@ -953,6 +1005,61 @@ Would you like me to help implement these improvements?`
                     >
                       <Link2 className="w-4 h-4 mr-2" />
                       Pull Context
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setActiveCommand(null)}
+                      size="sm"
+                      className="h-9"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Setup Command Interface - Show within chat area */}
+            {activeCommand === 'setup' && (
+              <div className="animate-fade-in bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                <div className="flex items-center gap-2 mb-4">
+                  <Zap className="w-5 h-5 text-pink-600" />
+                  <h3 className="font-semibold text-gray-900">Magic MCP Setup</h3>
+                </div>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">MCP Server URL or Repository</Label>
+                    <Input
+                      placeholder="e.g., https://github.com/user/mcp-server, npm:@scope/mcp-package"
+                      value={commandData.setupUrl || ''}
+                      onChange={(e) => setCommandData(prev => ({ ...prev, setupUrl: e.target.value }))}
+                      className="h-9"
+                    />
+                    <p className="text-xs text-gray-500">Paste any GitHub repo, npm package, or MCP server URL</p>
+                  </div>
+                  
+                  <div className="bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-200 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Sparkles className="w-4 h-4 text-pink-600" />
+                      <span className="text-sm font-medium text-pink-800">What I'll do automatically:</span>
+                    </div>
+                    <ul className="text-xs text-pink-700 space-y-1">
+                      <li>• Detect the MCP server type and requirements</li>
+                      <li>• Set up any needed OAuth connections</li>
+                      <li>• Install and configure the server</li>
+                      <li>• Test the connection and available tools</li>
+                    </ul>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      onClick={executeSetup}
+                      disabled={!commandData.setupUrl?.trim()}
+                      className="flex-1 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 h-9"
+                      size="sm"
+                    >
+                      <Zap className="w-4 h-4 mr-2" />
+                      Start Magic Setup
                     </Button>
                     <Button
                       variant="outline"

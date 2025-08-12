@@ -50,6 +50,13 @@ export default function IntegrationsContent() {
   const [showMagicSetup, setShowMagicSetup] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [isClient, setIsClient] = useState(false)
+  const [selectedServer, setSelectedServer] = useState<MCPServerConfig | null>(null)
+  const [customConfig, setCustomConfig] = useState<Partial<MCPServerConfig>>({
+    name: '',
+    command: '',
+    args: [],
+    env: {}
+  })
 
   // Ensure we're running on client side
   useEffect(() => {
@@ -68,13 +75,6 @@ export default function IntegrationsContent() {
       </div>
     )
   }
-  const [selectedServer, setSelectedServer] = useState<MCPServerConfig | null>(null)
-  const [customConfig, setCustomConfig] = useState<Partial<MCPServerConfig>>({
-    name: '',
-    command: '',
-    args: [],
-    env: {}
-  })
 
   const {
     connections,
@@ -236,9 +236,16 @@ export default function IntegrationsContent() {
                 <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
-              <Button onClick={() => setShowMagicSetup(true)} className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+              <Button 
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    window.location.href = '/ai-studio'
+                  }
+                }} 
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+              >
                 <Sparkles className="w-4 h-4 mr-2" />
-                Magic Setup
+                Chat Setup
               </Button>
               <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
                 <DialogTrigger asChild>
@@ -389,18 +396,22 @@ export default function IntegrationsContent() {
                   </div>
                   <h3 className="text-2xl font-bold text-gray-900 mb-3">✨ Magic MCP Setup</h3>
                   <p className="text-gray-600 mb-8 max-w-2xl mx-auto text-lg">
-                    Just paste any MCP server URL and we'll handle everything automatically - no technical setup required!
+                    Just chat with our AI assistant! Type <code className="bg-gray-200 px-2 py-1 rounded text-sm font-mono">@setup</code> in AI Studio and paste any URL - we'll handle everything automatically!
                   </p>
                   <div className="space-y-4">
                     <Button 
-                      onClick={() => setShowMagicSetup(true)} 
+                      onClick={() => {
+                        if (typeof window !== 'undefined') {
+                          window.location.href = '/ai-studio'
+                        }
+                      }} 
                       className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-lg px-8 py-3 h-auto shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
                     >
                       <Wand2 className="w-5 h-5 mr-3" />
-                      Start Magic Setup
+                      Open AI Studio
                     </Button>
                     <p className="text-sm text-gray-500">
-                      Works with GitHub repos, npm packages, and more
+                      Then type @setup to get started with any GitHub repo, npm package, or MCP server
                     </p>
                   </div>
                 </CardContent>

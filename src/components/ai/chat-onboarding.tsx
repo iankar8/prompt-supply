@@ -184,7 +184,7 @@ export function ChatOnboarding({ onComplete, onSkip, currentPrompt }: ChatOnboar
 
   return (
     <div className={`
-      transition-all duration-300 ease-out
+      transition-all duration-300 ease-out max-h-[500px] overflow-y-auto
       ${animationPhase === 'enter' ? 'animate-fade-in-up' : ''}
       ${animationPhase === 'exit' ? 'opacity-0 transform translate-y-4' : ''}
     `}>
