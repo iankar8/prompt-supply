@@ -70,8 +70,8 @@ export default function SignUpPage() {
         description: 'Please check your email for a verification link.',
       })
 
-      // Redirect to sign in page
-      router.push('/auth/signin')
+      // Redirect to email confirmation page with email parameter
+      router.push(`/auth/confirm-email?email=${encodeURIComponent(email)}`)
     } catch (error) {
       console.error('Error signing up:', error)
       toast({

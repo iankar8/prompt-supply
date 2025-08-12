@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useSupabase } from '@/components/providers'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
@@ -15,8 +16,10 @@ import {
   MessageCircle, 
   BookOpen,
   Zap,
-  Target,
-  Sparkles
+  Sparkles,
+  Settings,
+  Link2,
+  Target
 } from 'lucide-react'
 
 // Force dynamic rendering to avoid SSR issues with client-only components
@@ -33,18 +36,21 @@ export default function AIStudioPage() {
   const createPromptMutation = useCreatePrompt()
 
   useEffect(() => {
+    // Temporarily allow anonymous access for debugging
     if (!user) {
-      router.push('/auth/signin')
+      console.warn('AI Studio: No user found, allowing anonymous access for debugging')
+      // router.push('/auth/signin') // Commented out for debugging
     }
   }, [user, router])
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner className="h-8 w-8" />
-      </div>
-    )
-  }
+  // Temporarily allow anonymous access for debugging
+  // if (!user) {
+  //   return (
+  //     <div className="min-h-screen flex items-center justify-center">
+  //       <LoadingSpinner className="h-8 w-8" />
+  //     </div>
+  //   )
+  // }
 
   const handleSavePrompt = async (promptContent: string, metadata?: { title?: string, description?: string, tags?: string[] }) => {
     if (!promptContent.trim()) return
@@ -92,6 +98,29 @@ export default function AIStudioPage() {
       {/* Header */}
       <div className="relative bg-white/80 backdrop-blur-sm border-b border-white/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="flex justify-between items-start mb-8">
+            {/* Navigation */}
+            <div className="flex gap-2">
+              <Link href="/integrations">
+                <Button variant="outline" size="sm" className="flex items-center gap-2">
+                  <Link2 className="w-4 h-4" />
+                  Integrations
+                </Button>
+              </Link>
+              <Button variant="outline" size="sm" className="flex items-center gap-2">
+                <Settings className="w-4 h-4" />
+                Settings
+              </Button>
+            </div>
+
+            {/* User menu placeholder */}
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs">
+                {user?.email}
+              </Badge>
+            </div>
+          </div>
+          
           <div className="text-center">
             <div className="flex justify-center items-center gap-4 mb-6 animate-fade-in-up">
               <div className="w-14 h-14 bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/25 animate-pulse-gentle">

@@ -9,7 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
-import { useChatAboutPrompt, useGeneratePrompt, useAnalyzePrompt, useTestPrompt } from '@/hooks/use-ai'
+import { RateLimitStatus } from '@/components/ui/rate-limit-status'
+import { ChatOnboarding } from '@/components/ai/chat-onboarding'
+import { useChatAboutPrompt, useGeneratePrompt, useAnalyzePrompt, useTestPrompt, RateLimitError } from '@/hooks/use-ai'
+import { useMCPContext, useMCPToolCall } from '@/hooks/use-mcp'
 import { 
   MessageCircle, 
   Send, 
@@ -22,7 +25,9 @@ import {
   Save,
   AtSign,
   Zap,
-  Target
+  Target,
+  Link2,
+  Database
 } from 'lucide-react'
 
 interface ChatMessage {
@@ -39,7 +44,7 @@ interface AiChatProps {
   onSavePrompt?: (prompt: string, metadata?: { title?: string, description?: string, tags?: string[] }) => Promise<void>
 }
 
-type CommandType = 'generate' | 'analyze' | 'test' | 'evaluate' | 'save' | 'load'
+type CommandType = 'generate' | 'analyze' | 'test' | 'evaluate' | 'save' | 'load' | 'context'
 
 interface Command {
   type: CommandType
@@ -84,6 +89,13 @@ const AVAILABLE_COMMANDS: Command[] = [
     label: '@save',
     description: 'Save the current prompt to library',
     color: 'text-blue-600'
+  },
+  {
+    type: 'context',
+    icon: Link2,
+    label: '@context',
+    description: 'Pull real-time context from connected MCP servers',
+    color: 'text-cyan-600'
   }
 ]
 
@@ -93,6 +105,8 @@ export function AiChat({ currentPrompt, onPromptUpdate, onSavePrompt }: AiChatPr
   const [activeCommand, setActiveCommand] = useState<CommandType | null>(null)
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false)
   const [commandData, setCommandData] = useState<Record<string, any>>({})
+  const [showOnboarding, setShowOnboarding] = useState(true)
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -100,18 +114,22 @@ export function AiChat({ currentPrompt, onPromptUpdate, onSavePrompt }: AiChatPr
   const generateMutation = useGeneratePrompt()
   const analyzeMutation = useAnalyzePrompt()
   const testMutation = useTestPrompt()
+  
+  // MCP context hooks
+  const { availableContext, hasConnectedServers } = useMCPContext()
+  const { executeToolCall } = useMCPToolCall()
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Add welcome message with command instructions
+  // Initialize welcome message after onboarding is complete
   useEffect(() => {
-    if (messages.length === 0) {
+    if (hasCompletedOnboarding && messages.length === 0) {
       const welcomeContent = currentPrompt 
-        ? `I'm here to help you with your prompt engineering! I can see you're working with:\n\n"${currentPrompt}"\n\n**Try these @commands:**\n• @analyze - Get detailed analysis and improvements\n• @test - Test with sample inputs\n• @evaluate - Get comprehensive scoring\n• @generate - Create a new prompt\n• @save - Save to your library\n\nOr just chat naturally about prompt engineering!`
-        : `Hello! I'm Claude, your AI prompt engineering assistant. \n\n**Quick Commands:**\n• @generate - Create a new prompt with guided steps\n• @analyze [prompt] - Analyze and improve any prompt\n• @test [prompt] - Test prompt performance\n• @evaluate [prompt] - Get detailed scoring\n\nYou can also just chat naturally about prompt engineering. What would you like to work on?`
+        ? `Great! I can see you're working with a prompt. I'm ready to help you @analyze, @test, @evaluate, or improve it. What would you like to do?`
+        : `Hello! I'm Claude, your AI prompt engineering assistant. Ready to create something amazing? Try @generate to get started, or just tell me what you're working on!`
       
       const welcomeMessage: ChatMessage = {
         role: 'assistant',
@@ -120,7 +138,16 @@ export function AiChat({ currentPrompt, onPromptUpdate, onSavePrompt }: AiChatPr
       }
       setMessages([welcomeMessage])
     }
-  }, [currentPrompt, messages.length])
+  }, [hasCompletedOnboarding, currentPrompt, messages.length])
+
+  // Check for existing onboarding completion from localStorage
+  useEffect(() => {
+    const completed = localStorage.getItem('ai-chat-onboarding-completed')
+    if (completed === 'true') {
+      setShowOnboarding(false)
+      setHasCompletedOnboarding(true)
+    }
+  }, [])
 
   // Detect @mentions and show suggestions
   useEffect(() => {
@@ -232,6 +259,18 @@ export function AiChat({ currentPrompt, onPromptUpdate, onSavePrompt }: AiChatPr
           addAssistantMessage("No current prompt to save. Generate or set a prompt first.")
         }
         break
+
+      case 'context':
+        if (hasConnectedServers) {
+          setActiveCommand('context')
+          setCommandData({
+            selectedServers: [],
+            contextQuery: originalMessage.replace('@context', '').trim() || ''
+          })
+        } else {
+          addAssistantMessage("No MCP servers connected. Please connect to some integrations first in the [Integrations page](/integrations) to use @context commands.")
+        }
+        break
     }
   }
 
@@ -245,7 +284,13 @@ export function AiChat({ currentPrompt, onPromptUpdate, onSavePrompt }: AiChatPr
       { message, prompt: currentPrompt, conversationHistory },
       {
         onSuccess: (data) => addAssistantMessage(data.response),
-        onError: (error) => addAssistantMessage(`I encountered an error: ${error.message}. Please try again.`)
+        onError: (error) => {
+          if (error instanceof RateLimitError) {
+            addAssistantMessage(`⏰ **Rate Limit Reached**\n\n${error.friendlyMessage}\n\nI've been temporarily limited to prevent overuse. You can continue chatting once the limit resets.`)
+          } else {
+            addAssistantMessage(`I encountered an error: ${error.message}. Please try again.`)
+          }
+        }
       }
     )
   }
@@ -302,7 +347,13 @@ ${data.improvedVersion}
             }, 1000)
           }
         },
-        onError: (error) => addAssistantMessage(`Analysis failed: ${error.message}`)
+        onError: (error) => {
+          if (error instanceof RateLimitError) {
+            addAssistantMessage(`⏰ **Rate Limit Reached**\n\n${error.friendlyMessage}\n\nAnalysis requests are limited to prevent API overuse.`)
+          } else {
+            addAssistantMessage(`Analysis failed: ${error.message}`)
+          }
+        }
       }
     )
   }
@@ -333,7 +384,13 @@ Would you like me to set this as your current prompt?`
 
           addAssistantMessage(analysisContent)
         },
-        onError: (error) => addAssistantMessage(`Analysis failed: ${error.message}`)
+        onError: (error) => {
+          if (error instanceof RateLimitError) {
+            addAssistantMessage(`⏰ **Rate Limit Reached**\n\n${error.friendlyMessage}\n\nAnalysis requests are limited to prevent API overuse.`)
+          } else {
+            addAssistantMessage(`Analysis failed: ${error.message}`)
+          }
+        }
       }
     )
   }
@@ -366,7 +423,13 @@ ${results.suggestions.map(s => `• ${s}`).join('\n')}`
 
           addAssistantMessage(testContent)
         },
-        onError: (error) => addAssistantMessage(`Testing failed: ${error.message}`)
+        onError: (error) => {
+          if (error instanceof RateLimitError) {
+            addAssistantMessage(`⏰ **Rate Limit Reached**\n\n${error.friendlyMessage}\n\nTest requests are strictly limited as they use 2x API calls.`)
+          } else {
+            addAssistantMessage(`Testing failed: ${error.message}`)
+          }
+        }
       }
     )
   }
@@ -418,6 +481,25 @@ Would you like me to help implement these improvements?`
     setCommandData({})
   }
 
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false)
+    setHasCompletedOnboarding(true)
+    localStorage.setItem('ai-chat-onboarding-completed', 'true')
+  }
+
+  const handleOnboardingSkip = () => {
+    setShowOnboarding(false)
+    setHasCompletedOnboarding(true)
+    localStorage.setItem('ai-chat-onboarding-completed', 'true')
+  }
+
+  const resetOnboarding = () => {
+    localStorage.removeItem('ai-chat-onboarding-completed')
+    setShowOnboarding(true)
+    setHasCompletedOnboarding(false)
+    setMessages([])
+  }
+
   const handleCommandSuggestionClick = (command: Command) => {
     setInputMessage(command.label + ' ')
     setShowCommandSuggestions(false)
@@ -447,7 +529,11 @@ Would you like me to help implement these improvements?`
         setCommandData({})
       },
       onError: (error) => {
-        addAssistantMessage(`Generation failed: ${error.message}`)
+        if (error instanceof RateLimitError) {
+          addAssistantMessage(`⏰ **Rate Limit Reached**\n\n${error.friendlyMessage}\n\nGeneration requests are limited to prevent API overuse.`)
+        } else {
+          addAssistantMessage(`Generation failed: ${error.message}`)
+        }
         setActiveCommand(null)
       }
     })
@@ -478,6 +564,61 @@ Would you like me to help implement these improvements?`
     }
   }
 
+  const executeContext = async () => {
+    if (!commandData.selectedServers?.length) return
+    
+    try {
+      addAssistantMessage("🔍 Gathering context from connected servers...")
+      
+      const contextResults = []
+      
+      for (const serverId of commandData.selectedServers) {
+        const serverContext = availableContext.find(ctx => ctx.serverId === serverId)
+        if (!serverContext || !serverContext.connected) continue
+        
+        // For now, we'll gather basic info - this can be enhanced based on available tools
+        try {
+          if (serverContext.tools.length > 0) {
+            // Use the first available tool as an example
+            const tool = serverContext.tools[0]
+            const result = await executeToolCall({
+              serverId,
+              toolName: tool.name,
+              arguments: commandData.contextQuery ? { query: commandData.contextQuery } : {}
+            })
+            
+            if (result) {
+              contextResults.push({
+                server: serverContext.serverName,
+                content: result
+              })
+            }
+          }
+        } catch (error) {
+          console.error(`Failed to get context from ${serverContext.serverName}:`, error)
+        }
+      }
+      
+      if (contextResults.length > 0) {
+        let contextMessage = "## 📋 Context Retrieved\n\n"
+        contextResults.forEach(result => {
+          contextMessage += `### ${result.server}\n\`\`\`\n${JSON.stringify(result.content, null, 2)}\n\`\`\`\n\n`
+        })
+        contextMessage += "This context is now available for your prompt engineering. You can reference this information in your prompts or use it with other @commands."
+        
+        addAssistantMessage(contextMessage)
+      } else {
+        addAssistantMessage("⚠️ No context could be retrieved from the selected servers. Please check your connections and try again.")
+      }
+      
+      setActiveCommand(null)
+      setCommandData({})
+    } catch (error) {
+      addAssistantMessage("❌ Failed to retrieve context. Please try again.")
+      console.error('Context execution error:', error)
+    }
+  }
+
   const formatMessageContent = (content: string) => {
     // Convert code blocks to proper formatting
     return content
@@ -503,6 +644,11 @@ Would you like me to help implement these improvements?`
 
   return (
     <div className="space-y-6">
+      {/* Rate Limit Status - Compact View */}
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+        <RateLimitStatus compact={true} />
+      </div>
+      
       <Card className="flex flex-col h-[600px] relative overflow-hidden">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -532,13 +678,29 @@ Would you like me to help implement these improvements?`
               <Button variant="outline" size="sm" onClick={clearChat}>
                 Clear Chat
               </Button>
+              {hasCompletedOnboarding && (
+                <Button variant="ghost" size="sm" onClick={resetOnboarding} className="text-purple-600 hover:text-purple-700">
+                  Show Tour
+                </Button>
+              )}
             </div>
           </div>
         </CardHeader>
 
         <CardContent className="flex-1 flex flex-col overflow-hidden">
+          {/* Onboarding */}
+          {showOnboarding && (
+            <div className="mb-6">
+              <ChatOnboarding
+                onComplete={handleOnboardingComplete}
+                onSkip={handleOnboardingSkip}
+                currentPrompt={currentPrompt}
+              />
+            </div>
+          )}
+
           {/* Active Command Summary */}
-          {activeCommand && (
+          {!showOnboarding && activeCommand && (
             <div className="flex-shrink-0 mb-4 p-3 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200/50 rounded-lg">
               <div className="flex items-center gap-2">
                 {(() => {
@@ -558,9 +720,10 @@ Would you like me to help implement these improvements?`
           )}
 
           {/* Messages Container */}
-          <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2 min-h-0">
-            {/* Dynamic Command Interface - Show within chat area */}
-            {activeCommand === 'generate' && (
+          {!showOnboarding && (
+            <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2 min-h-0">
+              {/* Dynamic Command Interface - Show within chat area */}
+              {activeCommand === 'generate' && (
               <div className="animate-fade-in bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                 <div className="flex items-center gap-2 mb-4">
                   <Sparkles className="w-5 h-5 text-green-600" />
@@ -732,6 +895,78 @@ Would you like me to help implement these improvements?`
               </div>
             )}
 
+            {/* Context Command Interface - Show within chat area */}
+            {activeCommand === 'context' && (
+              <div className="animate-fade-in bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                <div className="flex items-center gap-2 mb-4">
+                  <Link2 className="w-5 h-5 text-cyan-600" />
+                  <h3 className="font-semibold text-gray-900">Pull Context from MCP Servers</h3>
+                </div>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Context Query (optional)</Label>
+                    <Input
+                      placeholder="e.g., recent issues, project status, design specs..."
+                      value={commandData.contextQuery || ''}
+                      onChange={(e) => setCommandData(prev => ({ ...prev, contextQuery: e.target.value }))}
+                      className="h-9"
+                    />
+                    <p className="text-xs text-gray-500">Describe what context you need to pull from connected servers</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Select Servers *</Label>
+                    <div className="space-y-2">
+                      {availableContext.filter(ctx => ctx.connected).map((server) => (
+                        <div key={server.serverId} className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id={`server-${server.serverId}`}
+                            checked={commandData.selectedServers?.includes(server.serverId) || false}
+                            onChange={(e) => {
+                              const currentServers = commandData.selectedServers || []
+                              const newServers = e.target.checked
+                                ? [...currentServers, server.serverId]
+                                : currentServers.filter((id: string) => id !== server.serverId)
+                              setCommandData(prev => ({ ...prev, selectedServers: newServers }))
+                            }}
+                            className="rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
+                          />
+                          <label htmlFor={`server-${server.serverId}`} className="text-sm text-gray-700 flex items-center gap-2">
+                            <Database className="w-4 h-4 text-gray-400" />
+                            {server.serverName} ({server.tools.length} tools)
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                    {availableContext.filter(ctx => ctx.connected).length === 0 && (
+                      <p className="text-sm text-gray-500 italic">No connected servers available. Visit the Integrations page to connect MCP servers.</p>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      onClick={executeContext}
+                      disabled={!commandData.selectedServers?.length}
+                      className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 h-9"
+                      size="sm"
+                    >
+                      <Link2 className="w-4 h-4 mr-2" />
+                      Pull Context
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setActiveCommand(null)}
+                      size="sm"
+                      className="h-9"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {messages.map((message, index) => (
               <div
                 key={index}
@@ -798,11 +1033,12 @@ Would you like me to help implement these improvements?`
               </div>
             )}
             
-            <div ref={messagesEndRef} />
-          </div>
+              <div ref={messagesEndRef} />
+            </div>
+          )}
 
           {/* Command suggestions dropdown */}
-          {showCommandSuggestions && (
+          {!showOnboarding && showCommandSuggestions && (
             <div className="relative mb-3 animate-fade-in">
               <div className="absolute bottom-full left-0 right-0 mb-2 z-50">
                 <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 max-h-64 overflow-y-auto">
@@ -841,7 +1077,8 @@ Would you like me to help implement these improvements?`
           )}
 
           {/* Input */}
-          <div className="flex-shrink-0 border-t pt-4">
+          {!showOnboarding && (
+            <div className="flex-shrink-0 border-t pt-4">
             <div className="flex gap-2">
               <Input
                 ref={inputRef}
@@ -882,7 +1119,8 @@ Would you like me to help implement these improvements?`
                 })}
               </div>
             )}
-          </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

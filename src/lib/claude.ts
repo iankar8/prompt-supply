@@ -92,9 +92,41 @@ Please provide your analysis in the following JSON format:
         throw new Error('Unexpected response type from Claude')
       }
 
-      return JSON.parse(content.text)
+      console.log('[CLAUDE] Raw analyze response:', content.text)
+      
+      // Extract JSON from response (Claude might wrap it in markdown)
+      let jsonText = content.text.trim()
+      
+      // Remove markdown code blocks if present
+      const jsonMatch = jsonText.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/)
+      if (jsonMatch) {
+        jsonText = jsonMatch[1]
+      } else if (jsonText.includes('{') && jsonText.includes('}')) {
+        // Extract first JSON object
+        const start = jsonText.indexOf('{')
+        const end = jsonText.lastIndexOf('}') + 1
+        jsonText = jsonText.substring(start, end)
+      }
+      
+      // Fix Claude's use of triple quotes (""") which is invalid JSON
+      jsonText = jsonText.replace(/"""/g, '"')
+      
+      // Fix newlines and control characters in string values
+      // This is a more robust approach - parse manually to handle Claude's formatting
+      try {
+        // Try parsing first - if it works, great!
+        JSON.parse(jsonText)
+      } catch (parseError) {
+        // If parsing fails, fix common JSON issues
+        jsonText = jsonText.replace(/[\r\n\t]/g, ' ').replace(/\s+/g, ' ')
+      }
+      
+      console.log('[CLAUDE] Extracted JSON:', jsonText.substring(0, 500) + '...')
+      
+      return JSON.parse(jsonText)
     } catch (error) {
       console.error('Error analyzing prompt:', error)
+      console.error('Raw response that failed to parse:', error instanceof Error ? error.message : String(error))
       throw new Error('Failed to analyze prompt with Claude')
     }
   },
@@ -331,7 +363,37 @@ Provide an evaluation in this JSON format:
           throw new Error('Unexpected response type from Claude')
         }
 
-        const evaluation = JSON.parse(evalContent.text)
+        console.log('[CLAUDE] Raw test evaluation response:', evalContent.text)
+        
+        // Extract JSON from response (Claude might wrap it in markdown)
+        let jsonText = evalContent.text.trim()
+        
+        // Remove markdown code blocks if present
+        const jsonMatch = jsonText.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/)
+        if (jsonMatch) {
+          jsonText = jsonMatch[1]
+        } else if (jsonText.includes('{') && jsonText.includes('}')) {
+          // Extract first JSON object
+          const start = jsonText.indexOf('{')
+          const end = jsonText.lastIndexOf('}') + 1
+          jsonText = jsonText.substring(start, end)
+        }
+        
+        // Fix Claude's use of triple quotes (""") which is invalid JSON
+        jsonText = jsonText.replace(/"""/g, '"')
+        
+        // Fix newlines and control characters in string values
+        try {
+          // Try parsing first - if it works, great!
+          JSON.parse(jsonText)
+        } catch (parseError) {
+          // If parsing fails, fix common JSON issues
+          jsonText = jsonText.replace(/[\r\n\t]/g, ' ').replace(/\s+/g, ' ')
+        }
+        
+        console.log('[CLAUDE] Extracted test evaluation JSON:', jsonText.substring(0, 200) + '...')
+        
+        const evaluation = JSON.parse(jsonText)
 
         results.push({
           response: responseText,
