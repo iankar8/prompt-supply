@@ -58,6 +58,20 @@ export default function IntegrationsContent() {
     env: {}
   })
 
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
+  const mcpHooks = useMCPConnections()
+  const {
+    connections = [],
+    isLoading = false,
+    connect,
+    disconnect,
+    deleteConnection,
+    isConnecting = false,
+    isDisconnecting = false,
+    isDeleting = false,
+    refetch = () => {}
+  } = mcpHooks || {}
+
   // Ensure we're running on client side
   useEffect(() => {
     setIsClient(true)
@@ -75,19 +89,6 @@ export default function IntegrationsContent() {
       </div>
     )
   }
-
-  const mcpHooks = useMCPConnections()
-  const {
-    connections = [],
-    isLoading = false,
-    connect,
-    disconnect,
-    deleteConnection,
-    isConnecting = false,
-    isDisconnecting = false,
-    isDeleting = false,
-    refetch = () => {}
-  } = mcpHooks || {}
 
   if (!user) {
     return (
