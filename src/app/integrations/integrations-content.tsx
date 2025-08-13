@@ -76,17 +76,18 @@ export default function IntegrationsContent() {
     )
   }
 
+  const mcpHooks = useMCPConnections()
   const {
-    connections,
-    isLoading,
+    connections = [],
+    isLoading = false,
     connect,
     disconnect,
     deleteConnection,
-    isConnecting,
-    isDisconnecting,
-    isDeleting,
-    refetch
-  } = useMCPConnections()
+    isConnecting = false,
+    isDisconnecting = false,
+    isDeleting = false,
+    refetch = () => {}
+  } = mcpHooks || {}
 
   if (!user) {
     return (

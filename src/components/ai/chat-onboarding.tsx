@@ -133,7 +133,7 @@ export function ChatOnboarding({ onComplete, onSkip, currentPrompt }: ChatOnboar
       const timer = setTimeout(() => setAnimationPhase('stable'), 300)
       return () => clearTimeout(timer)
     }
-  }, [animationPhase, currentStep])
+  }, [animationPhase])
 
   const handleNext = () => {
     if (currentStep < ONBOARDING_STEPS.length - 1) {
@@ -174,10 +174,14 @@ export function ChatOnboarding({ onComplete, onSkip, currentPrompt }: ChatOnboar
   }
 
   const handleDemoClick = (demo: string) => {
-    navigator.clipboard.writeText(demo).then(() => {
-      // Simple feedback - could be enhanced with toast
-      console.log('Copied to clipboard:', demo)
-    })
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(demo).then(() => {
+        // Simple feedback - could be enhanced with toast
+        console.log('Copied to clipboard:', demo)
+      }).catch(() => {
+        console.log('Failed to copy to clipboard')
+      })
+    }
   }
 
   if (!isVisible) return null
