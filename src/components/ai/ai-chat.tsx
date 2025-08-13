@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -10,7 +10,6 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { RateLimitStatus } from '@/components/ui/rate-limit-status'
-import { ChatOnboarding } from '@/components/ai/chat-onboarding'
 import { useChatAboutPrompt, useGeneratePrompt, useAnalyzePrompt, useTestPrompt, RateLimitError } from '@/hooks/use-ai'
 import { useMCPContext, useMCPToolCall } from '@/hooks/use-mcp'
 import { 
@@ -131,7 +130,7 @@ export function AiChat({ currentPrompt, onPromptUpdate, onSavePrompt }: AiChatPr
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Initialize welcome message after onboarding is complete
+  // Initialize tour messages for new users
   useEffect(() => {
     if (hasCompletedOnboarding && messages.length === 0) {
       const welcomeContent = currentPrompt 
@@ -144,6 +143,9 @@ export function AiChat({ currentPrompt, onPromptUpdate, onSavePrompt }: AiChatPr
         timestamp: new Date()
       }
       setMessages([welcomeMessage])
+    } else if (!hasCompletedOnboarding && messages.length === 0) {
+      // Start the chat-based tour
+      // startChatTour()
     }
   }, [hasCompletedOnboarding, currentPrompt, messages.length])
 
@@ -507,6 +509,22 @@ Would you like me to help implement these improvements?`
     setMessages([])
   }
 
+  // const startChatTour = useCallback(() => {
+  //   const tourMessages: ChatMessage[] = [
+  //     {
+  //       role: 'assistant',
+  //       content: `👋 **Welcome to AI Studio!**
+
+  // I'm Claude, your personal prompt engineering assistant. I'll help you create, analyze, and perfect prompts for any use case.
+
+  // Ready for a quick tour? ✨`,
+  //       timestamp: new Date()
+  //     }
+  //   ]
+
+  //   setMessages(tourMessages)
+  // }, [])
+
   const handleCommandSuggestionClick = (command: Command) => {
     setInputMessage(command.label + ' ')
     setShowCommandSuggestions(false)
@@ -672,26 +690,21 @@ Try typing @context to see your new integration in action!`)
   }
 
   const formatMessageContent = (content: string) => {
-    // Convert code blocks to proper formatting
-    return content
-      .split('```')
-      .map((part, index) => {
-        if (index % 2 === 1) {
-          // This is inside a code block
-          return (
-            <pre key={index} className="bg-gray-100 p-3 rounded-md my-2 text-sm overflow-x-auto">
-              <code>{part}</code>
-            </pre>
-          )
-        }
-        // Regular text - convert newlines to breaks
-        return part.split('\n').map((line, lineIndex, array) => (
-          <span key={`${index}-${lineIndex}`}>
-            {line}
-            {lineIndex < array.length - 1 && <br />}
-          </span>
-        ))
-      })
+    return content.split('```').map((part, index) => {
+      if (index % 2 === 1) {
+        return (
+          <pre key={index} className="bg-gray-100 p-3 rounded-md my-2 text-sm overflow-x-auto">
+            <code>{part}</code>
+          </pre>
+        )
+      }
+      return part.split('\n').map((line, lineIndex, array) => (
+        <span key={`${index}-${lineIndex}`}>
+          {line}
+          {lineIndex < array.length - 1 && <br />}
+        </span>
+      ))
+    })
   }
 
   return (
@@ -730,29 +743,16 @@ Try typing @context to see your new integration in action!`)
               <Button variant="outline" size="sm" onClick={clearChat}>
                 Clear Chat
               </Button>
-              {hasCompletedOnboarding && (
-                <Button variant="ghost" size="sm" onClick={resetOnboarding} className="text-purple-600 hover:text-purple-700">
-                  Show Tour
-                </Button>
-              )}
+              <Button variant="ghost" size="sm" onClick={resetOnboarding} className="text-purple-600 hover:text-purple-700">
+                Reset Tour
+              </Button>
             </div>
           </div>
         </CardHeader>
 
         <CardContent className="flex-1 flex flex-col overflow-hidden">
-          {/* Onboarding */}
-          {showOnboarding && (
-            <div className="mb-6">
-              <ChatOnboarding
-                onComplete={handleOnboardingComplete}
-                onSkip={handleOnboardingSkip}
-                currentPrompt={currentPrompt}
-              />
-            </div>
-          )}
-
           {/* Active Command Summary */}
-          {!showOnboarding && activeCommand && (
+          {activeCommand && (
             <div className="flex-shrink-0 mb-4 p-3 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200/50 rounded-lg">
               <div className="flex items-center gap-2">
                 {(() => {
@@ -772,8 +772,7 @@ Try typing @context to see your new integration in action!`)
           )}
 
           {/* Messages Container */}
-          {!showOnboarding && (
-            <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2 min-h-0">
+          <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2 min-h-0">
               {/* Dynamic Command Interface - Show within chat area */}
               {activeCommand === 'generate' && (
               <div className="animate-fade-in bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
@@ -1145,7 +1144,7 @@ Try typing @context to see your new integration in action!`)
           )}
 
           {/* Command suggestions dropdown */}
-          {!showOnboarding && showCommandSuggestions && (
+          {showCommandSuggestions && (
             <div className="relative mb-3 animate-fade-in">
               <div className="absolute bottom-full left-0 right-0 mb-2 z-50">
                 <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 max-h-64 overflow-y-auto">
@@ -1184,8 +1183,7 @@ Try typing @context to see your new integration in action!`)
           )}
 
           {/* Input */}
-          {!showOnboarding && (
-            <div className="flex-shrink-0 border-t pt-4">
+          <div className="flex-shrink-0 border-t pt-4">
             <div className="flex gap-2">
               <Input
                 ref={inputRef}
@@ -1227,7 +1225,7 @@ Try typing @context to see your new integration in action!`)
               </div>
             )}
             </div>
-          )}
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -29,7 +29,7 @@ export default function AIStudioPage() {
   const { user } = useSupabase()
   const router = useRouter()
   const [currentPrompt, setCurrentPrompt] = useState('')
-  const [activeTab, setActiveTab] = useState('library')
+  const [activeTab, setActiveTab] = useState('assistant')
   
   // Fetch saved prompts and mutation for creating new ones
   const { data: prompts = [], isLoading: promptsLoading } = usePrompts()
